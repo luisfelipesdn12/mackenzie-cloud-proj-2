@@ -33,16 +33,16 @@ class RecipeUpdate(SQLModel):
 
 # Database configuration from environment variables
 DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT", "3306")
+DB_PORT = os.getenv("DB_PORT", "5432")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")
 
-# Create MySQL connection string
-mysql_url = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# Create PostgreSQL connection string
+postgres_url = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Create engine
-engine = create_engine(mysql_url, echo=True)
+engine = create_engine(postgres_url, echo=True)
 
 
 def create_db_and_tables():
