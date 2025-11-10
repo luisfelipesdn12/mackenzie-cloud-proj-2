@@ -96,30 +96,18 @@ def create_db_and_tables():
 def fix_sequence():
     """Sincroniza a sequência do PostgreSQL com o máximo ID existente"""
     try:
-        with Session(engine) as session:
-            # Verifica se a tabela existe
-            table_exists = session.exec(
-                text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'recipe')")
-            ).first()
-            
-            if not table_exists:
-                return
-            
-            # Busca o maior ID na tabela
-            result = session.exec(text("SELECT COALESCE(MAX(id), 0) FROM recipe")).first()
+        with Session(engine) as conn:
+            # Tenta buscar o maior ID na tabela (se a tabela não existir, vai dar erro e retornar)
+            result = conn.exec(text("SELECT COALESCE(MAX(id), 0) FROM recipe")).first()
             max_id = result if result is not None else 0
             
-            # Verifica se a sequência existe e atualiza
-            seq_exists = session.exec(
-                text("SELECT EXISTS (SELECT FROM pg_sequences WHERE sequencename = 'recipe_id_seq')")
-            ).first()
-            
-            if seq_exists:
-                # Atualiza a sequência para o próximo valor disponível
-                session.exec(text(f"SELECT setval('recipe_id_seq', {max_id}, true)"))
-                session.commit()
-                print(f"PostgreSQL sequence synchronized to {max_id}")
+            # Tenta atualizar a sequência (se não existir, vai dar erro e ser ignorado)
+            # setval com true significa que o próximo nextval() retornará max_id + 1
+            conn.exec(text(f"SELECT setval('recipe_id_seq', {max_id}, true)"))
+            conn.commit()
+            print(f"PostgreSQL sequence synchronized to {max_id}")
     except Exception as e:
+        # Ignora erros - pode ser que a tabela ou sequência não existam ainda
         print(f"Error fixing sequence (this is usually OK if table is new): {e}")
 
 
