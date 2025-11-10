@@ -1,4 +1,4 @@
-# Relatório do Projeto Integrador – Cloud Developing 2025/1
+# Relatório do Projeto Integrador – Cloud Developing 2025/2
 
 **Título do Projeto:** API REST para Gerenciamento de Receitas com Deploy na AWS
 
