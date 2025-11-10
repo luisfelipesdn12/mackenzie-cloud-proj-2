@@ -59,6 +59,43 @@ jobs:
           aws ecs describe-task-definition \
             --task-definition ${{ env.ECS_TASK_DEFINITION }} \
             --query taskDefinition > task-definition.json
+          
+          # Remove campos inválidos que podem causar erro no registro
+          # O campo 'enableFaultInjection' e outros campos de controle não são permitidos
+          python3 << 'EOF'
+          import json
+          
+          with open('task-definition.json', 'r') as f:
+              task_def = json.load(f)
+          
+          # Remover campos que não são permitidos no registro de task definition
+          invalid_fields = [
+              'taskDefinitionArn',
+              'revision',
+              'status',
+              'requiresAttributes',
+              'placementConstraints',
+              'compatibilities',
+              'registeredAt',
+              'registeredBy',
+              'enableFaultInjection',
+              'faultInjectionPolicy'
+          ]
+          
+          for field in invalid_fields:
+              task_def.pop(field, None)
+          
+          # Remover campos vazios ou None (mas manter listas vazias se necessário)
+          cleaned_def = {}
+          for k, v in task_def.items():
+              if v is not None:
+                  cleaned_def[k] = v
+          
+          with open('task-definition.json', 'w') as f:
+              json.dump(cleaned_def, f, indent=2)
+          
+          print("Task definition cleaned and ready for deployment")
+          EOF
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
