@@ -1,5 +1,5 @@
 import os
-from typing import Annotated
+from typing import Annotated, Optional, List
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -10,25 +10,25 @@ load_dotenv()
 
 # Recipe Model
 class Recipe(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
+    id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
-    description: str | None = Field(default=None)
+    description: Optional[str] = Field(default=None)
     ingredients: str
     instructions: str
-    prep_time_minutes: int | None = Field(default=None)
-    cook_time_minutes: int | None = Field(default=None)
-    servings: int | None = Field(default=None)
+    prep_time_minutes: Optional[int] = Field(default=None)
+    cook_time_minutes: Optional[int] = Field(default=None)
+    servings: Optional[int] = Field(default=None)
 
 
 # Recipe Update Model (for partial updates)
 class RecipeUpdate(SQLModel):
-    name: str | None = None
-    description: str | None = None
-    ingredients: str | None = None
-    instructions: str | None = None
-    prep_time_minutes: int | None = None
-    cook_time_minutes: int | None = None
-    servings: int | None = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    ingredients: Optional[str] = None
+    instructions: Optional[str] = None
+    prep_time_minutes: Optional[int] = None
+    cook_time_minutes: Optional[int] = None
+    servings: Optional[int] = None
 
 
 # Database configuration from environment variables
@@ -72,12 +72,12 @@ def create_recipe(recipe: Recipe, session: SessionDep) -> Recipe:
     return recipe
 
 
-@app.get("/recipes/", response_model=list[Recipe])
+@app.get("/recipes/", response_model=List[Recipe])
 def read_recipes(
     session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
-) -> list[Recipe]:
+) -> List[Recipe]:
     recipes = session.exec(select(Recipe).offset(offset).limit(limit)).all()
     return recipes
 
