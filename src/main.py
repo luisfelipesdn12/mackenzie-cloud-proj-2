@@ -4,6 +4,7 @@ from typing import Annotated, Optional, List
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlalchemy import text
 
 # Load environment variables
 load_dotenv()
@@ -38,11 +39,40 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")
 
-# Create PostgreSQL connection string
-postgres_url = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# Variável global para o engine (será criado após garantir que o banco existe)
+engine = None
 
-# Create engine
-engine = create_engine(postgres_url, echo=True)
+
+def ensure_database_exists():
+    """Cria o banco de dados se ele não existir"""
+    # Conecta ao banco padrão 'postgres' para criar o banco se necessário
+    postgres_admin_url = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/postgres"
+    admin_engine = create_engine(postgres_admin_url, isolation_level="AUTOCOMMIT")
+    
+    try:
+        with admin_engine.connect() as conn:
+            # Verifica se o banco existe
+            result = conn.execute(
+                text(f"SELECT 1 FROM pg_database WHERE datname = '{DB_NAME}'")
+            )
+            exists = result.fetchone() is not None
+            
+            if not exists:
+                # Cria o banco de dados
+                conn.execute(text(f'CREATE DATABASE "{DB_NAME}"'))
+                print(f"Database '{DB_NAME}' created successfully")
+            else:
+                print(f"Database '{DB_NAME}' already exists")
+    except Exception as e:
+        print(f"Error checking/creating database: {e}")
+        # Se falhar, tenta continuar (pode ser que o banco já exista)
+    finally:
+        admin_engine.dispose()
+    
+    # Agora cria o engine para o banco de dados
+    global engine
+    postgres_url = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    engine = create_engine(postgres_url, echo=True)
 
 
 def create_db_and_tables():
@@ -61,6 +91,7 @@ app = FastAPI()
 
 @app.on_event("startup")
 def on_startup():
+    ensure_database_exists()
     create_db_and_tables()
 
 
