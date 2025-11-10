@@ -96,16 +96,31 @@ def create_db_and_tables():
 def fix_sequence():
     """Sincroniza a sequência do PostgreSQL com o máximo ID existente"""
     try:
-        with Session(engine) as conn:
-            # Tenta buscar o maior ID na tabela (se a tabela não existir, vai dar erro e retornar)
-            result = conn.exec(text("SELECT COALESCE(MAX(id), 0) FROM recipe")).first()
-            max_id = result if result is not None else 0
+        with engine.begin() as connection:
+            # Tenta buscar o maior ID na tabela
+            result = connection.execute(text("SELECT COALESCE(MAX(id), 0) FROM recipe")).scalar()
+            max_id = int(result) if result is not None else 0
             
-            # Tenta atualizar a sequência (se não existir, vai dar erro e ser ignorado)
-            # setval com true significa que o próximo nextval() retornará max_id + 1
-            conn.exec(text(f"SELECT setval('recipe_id_seq', {max_id}, true)"))
-            conn.commit()
-            print(f"PostgreSQL sequence synchronized to {max_id}")
+            print(f"PostgreSQL sequence: Max ID: {max_id}")
+            
+            # Verifica se a sequência existe antes de tentar atualizar
+            seq_check = connection.execute(
+                text("SELECT 1 FROM pg_class WHERE relname = 'recipe_id_seq'")
+            ).scalar()
+            
+            if seq_check:
+                # Atualiza a sequência usando DO block para evitar problemas de sintaxe
+                # setval com true significa que o próximo nextval() retornará max_id + 1
+                sql = f"""
+                DO $$
+                BEGIN
+                    PERFORM setval('recipe_id_seq', {max_id}, true);
+                END $$;
+                """
+                connection.execute(text(sql))
+                print(f"PostgreSQL sequence synchronized to {max_id}")
+            else:
+                print("Sequence recipe_id_seq does not exist yet, skipping")
     except Exception as e:
         # Ignora erros - pode ser que a tabela ou sequência não existam ainda
         print(f"Error fixing sequence (this is usually OK if table is new): {e}")
