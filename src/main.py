@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Annotated, Optional, List
 
 from dotenv import load_dotenv
@@ -79,6 +80,61 @@ def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
 
+def is_table_empty() -> bool:
+    """Verifica se a tabela recipe está vazia"""
+    try:
+        with Session(engine) as session:
+            # Tenta buscar o primeiro registro
+            result = session.exec(select(Recipe).limit(1)).first()
+            return result is None
+    except Exception as e:
+        # Se a tabela não existir ainda, considera como vazia
+        print(f"Error checking if table is empty: {e}")
+        return True
+
+
+def initialize_sample_data():
+    """Executa o script initialize.sql para popular dados iniciais, apenas se a tabela estiver vazia"""
+    if not is_table_empty():
+        print("Recipe table is not empty, skipping data initialization")
+        return
+    
+    sql_file = Path(__file__).parent / "initialize.sql"
+    
+    if not sql_file.exists():
+        print("initialize.sql not found, skipping data initialization")
+        return
+    
+    try:
+        with engine.begin() as conn:
+            # Lê o arquivo SQL
+            sql_content = sql_file.read_text(encoding='utf-8')
+            
+            # Remove comentários (linhas que começam com --)
+            lines = []
+            for line in sql_content.split('\n'):
+                stripped = line.strip()
+                if stripped and not stripped.startswith('--'):
+                    lines.append(line)
+            
+            # Junta as linhas e divide por ponto e vírgula
+            full_sql = '\n'.join(lines)
+            # Remove o último ponto e vírgula se existir (pode estar no final do arquivo)
+            full_sql = full_sql.rstrip(';').strip()
+            
+            if full_sql:
+                # Executa o comando SQL completo
+                # O context manager engine.begin() faz commit automaticamente
+                conn.execute(text(full_sql))
+                print("Sample data initialized successfully")
+            else:
+                print("No SQL commands found in initialize.sql")
+                
+    except Exception as e:
+        print(f"Error initializing sample data: {e}")
+        # Não levanta exceção para não impedir o startup da aplicação
+
+
 def get_session():
     with Session(engine) as session:
         yield session
@@ -93,6 +149,7 @@ app = FastAPI()
 def on_startup():
     ensure_database_exists()
     create_db_and_tables()
+    initialize_sample_data()
 
 
 @app.post("/recipes/", response_model=Recipe)
