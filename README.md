@@ -2,7 +2,7 @@
 
 > CRUD simples + API Gateway + Lambda /report + RDS + CI/CD
 
-<!-- AWS Academy Learner Lab [133979] 2 -->
+<!-- AWS Academy Learner Lab [133979] -->
 
 **Grupo**:
 
